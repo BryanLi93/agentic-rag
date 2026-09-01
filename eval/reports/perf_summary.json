@@ -1,0 +1,7 @@
+{
+  "n": 10,
+  "latency_avg_ms": 1170,
+  "latency_max_ms": 3049,
+  "tokens_total": 9446,
+  "cost_total_yuan": 0.0
+}

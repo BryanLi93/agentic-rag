@@ -1,0 +1,42 @@
+@import "tailwindcss";
+/* 代码高亮主题(rehype-highlight 用 highlight.js 的类名)。统一用 dark 主题,代码块恒为深色。 */
+@import "highlight.js/styles/github-dark.css";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* 块级代码:github-dark 主题给 .hljs 上了深色背景+浅色字,这里补 block 布局/内边距/圆角/字体 */
+pre code.hljs {
+  display: block;
+  overflow-x: auto;
+  padding: 0.85rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+pre {
+  margin: 0.5rem 0;
+}

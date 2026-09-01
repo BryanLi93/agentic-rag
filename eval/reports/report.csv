@@ -1,0 +1,11 @@
+id,in_kb,faithfulness,answer_relevancy,context_recall,llm_context_precision_with_reference
+python-fastapi-request-flow,True,1.0,0.8987099254004357,1.0,0.8333333332916666
+python-pydantic-vs-orm,True,1.0,0.9486073928771,1.0,0.9999999999
+rag-chunk-size-overlap,True,0.9285714285714286,0.5473546316302031,1.0,0.49999999995
+rag-reranker,True,1.0,0.7535996071127616,1.0,0.9999999999
+pgvector-dimension,True,1.0,0.8637819201648974,1.0,0.9999999999666667
+pgvector-indexes,True,1.0,0.8619719233255517,1.0,0.9999999999
+java-volatile,True,1.0,0.7799649037422918,1.0,0.9999999999
+java-executor-service,True,0.8333333333333334,0.8012861106802943,1.0,0.99999999995
+ops-duplicate-chunks,True,0.75,0.7843951372809412,1.0,0.9999999999
+missing-kubernetes-hpa,False,0.0,0.0,0.5,0.99999999995

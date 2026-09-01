@@ -1,0 +1,11 @@
+{
+  "n_total": 10,
+  "n_in_kb": 9,
+  "faithfulness": 0.9458,
+  "answer_relevancy": 0.8044,
+  "context_recall": 1.0,
+  "context_precision": 0.9259,
+  "out_of_kb_ids": [
+    "missing-kubernetes-hpa"
+  ]
+}

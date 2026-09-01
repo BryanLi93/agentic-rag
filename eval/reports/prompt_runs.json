@@ -1,0 +1,20 @@
+[
+  {
+    "version": "v1",
+    "note": "baseline:服务端默认 prompt",
+    "time": "2026-06-26T17:18:18",
+    "faithfulness": 0.9722,
+    "answer_relevancy": 0.8143,
+    "context_recall": 1.0,
+    "context_precision": 0.8704
+  },
+  {
+    "version": "v2",
+    "note": "v1+聚焦规则:禁止无关延伸,治 relevancy/precision 跑题",
+    "time": "2026-06-26T17:22:13",
+    "faithfulness": 0.9637,
+    "answer_relevancy": 0.8094,
+    "context_recall": 1.0,
+    "context_precision": 0.9259
+  }
+]

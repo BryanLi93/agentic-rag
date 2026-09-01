@@ -1,0 +1,64 @@
+{
+  "questions": [
+    {
+      "id": "python-fastapi-request-flow",
+      "topic": "Python / FastAPI",
+      "question": "FastAPI 的一次请求从进入路由到写入数据库通常会经历哪些步骤?",
+      "top_k": 3
+    },
+    {
+      "id": "python-pydantic-vs-orm",
+      "topic": "Python / FastAPI",
+      "question": "为什么 Pydantic schema 不应该直接替代 SQLAlchemy ORM model?",
+      "top_k": 3
+    },
+    {
+      "id": "rag-chunk-size-overlap",
+      "topic": "RAG Pipeline",
+      "question": "chunk_size 和 chunk_overlap 会怎样影响 RAG 的召回效果?",
+      "top_k": 3
+    },
+    {
+      "id": "rag-reranker",
+      "topic": "RAG Pipeline",
+      "question": "RAG 里 reranker 的作用是什么, 什么情况下值得加入 reranker?",
+      "top_k": 3
+    },
+    {
+      "id": "pgvector-dimension",
+      "topic": "PostgreSQL / pgvector",
+      "question": "为什么 pgvector 的向量字段维度必须和 embedding 模型输出维度一致?",
+      "top_k": 3
+    },
+    {
+      "id": "pgvector-indexes",
+      "topic": "PostgreSQL / pgvector",
+      "question": "HNSW 和 IVFFlat 两种 pgvector 索引有什么差异?",
+      "top_k": 3
+    },
+    {
+      "id": "java-volatile",
+      "topic": "Java Concurrency",
+      "question": "Java 里的 volatile 能解决什么问题, 又不能保证什么?",
+      "top_k": 3
+    },
+    {
+      "id": "java-executor-service",
+      "topic": "Java Concurrency",
+      "question": "为什么服务端 Java 程序通常更适合使用 ExecutorService, 而不是每个任务都直接 new Thread?",
+      "top_k": 3
+    },
+    {
+      "id": "ops-duplicate-chunks",
+      "topic": "Operations / Data Quality",
+      "question": "重复运行测试入库脚本为什么可能导致 top-k 返回多个完全相同的 chunks?",
+      "top_k": 3
+    },
+    {
+      "id": "missing-kubernetes-hpa",
+      "topic": "Out of Knowledge Base",
+      "question": "知识库里有没有介绍 Kubernetes HPA 的扩缩容算法?",
+      "top_k": 3
+    }
+  ]
+}

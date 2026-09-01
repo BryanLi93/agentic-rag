@@ -1,0 +1,55 @@
+{
+  "items": [
+    {
+      "id": "python-fastapi-request-flow",
+      "question": "FastAPI 的一次请求从进入路由到写入数据库通常会经历哪些步骤?",
+      "reference": "FastAPI 收到请求后先匹配路由,再解析路径参数、查询参数和请求体。依赖注入函数在路由执行前创建数据库会话(AsyncSession)、校验鉴权或读取配置。路由函数通常把主要业务交给 service 层处理。写库在同一个 session 的事务中完成:flush 可以提前拿到数据库生成的主键但不等于提交,commit 才会让数据持久化。"
+    },
+    {
+      "id": "python-pydantic-vs-orm",
+      "question": "为什么 Pydantic schema 不应该直接替代 SQLAlchemy ORM model?",
+      "reference": "Pydantic schema 面向接口边界,负责请求和响应数据的校验、序列化与文档生成;SQLAlchemy ORM model 面向数据库表结构,负责字段类型、关系、索引和持久化行为。两者职责不同。把 schema 直接当成 ORM model 会导致数据库事务、默认值、关系加载和响应过滤混在一起,项目变大后很难维护。"
+    },
+    {
+      "id": "rag-chunk-size-overlap",
+      "question": "chunk_size 和 chunk_overlap 会怎样影响 RAG 的召回效果?",
+      "reference": "chunk_size 决定每个片段能承载多少语义:太小会把完整说明切碎、导致答案缺少前因后果,太大又会把多个主题塞在一起、使相似度分数变得模糊。chunk_overlap 用于保留边界附近的上下文,适合处理长段落、步骤列表和跨段解释。"
+    },
+    {
+      "id": "rag-reranker",
+      "question": "RAG 里 reranker 的作用是什么, 什么情况下值得加入 reranker?",
+      "reference": "向量相似度适合快速召回,但不一定能精确排序,尤其当多个 chunk 都包含相似关键词时。reranker 会把问题和候选 chunk 成对比较,重新排序后再取前几条。只有当知识库变大、主题相近、误召回明显时,加入 reranker 的价值才会突出。"
+    },
+    {
+      "id": "pgvector-dimension",
+      "question": "为什么 pgvector 的向量字段维度必须和 embedding 模型输出维度一致?",
+      "reference": "pgvector 的向量字段维度必须和 embedding 模型输出维度一致,例如模型输出 1536 维,数据库列也要声明为 1536 维。维度不一致时插入会失败,或者查询时的距离计算无法执行。更换模型或修改输出维度后,表结构和历史数据都需要一起调整。"
+    },
+    {
+      "id": "pgvector-indexes",
+      "question": "HNSW 和 IVFFlat 两种 pgvector 索引有什么差异?",
+      "reference": "HNSW 索引适合高召回、低延迟的近似搜索,但构建时占用更多内存、写入也更重。IVFFlat 需要先有一定数据量再建索引,查询时通常要调 probes,在速度和召回之间取舍。小型库即使没有索引也能跑通,数据量上万后索引才会明显影响体验。"
+    },
+    {
+      "id": "java-volatile",
+      "question": "Java 里的 volatile 能解决什么问题, 又不能保证什么?",
+      "reference": "volatile 主要解决可见性和禁止特定指令重排序的问题:一个线程修改 volatile 变量后,其他线程能更快看到新值,适合做状态标记如 shutdown flag。但 volatile 不能让复合操作自动具备原子性,count++ 在并发下仍可能丢失更新,计数器应使用 AtomicInteger、LongAdder 或锁。"
+    },
+    {
+      "id": "java-executor-service",
+      "question": "为什么服务端 Java 程序通常更适合使用 ExecutorService, 而不是每个任务都直接 new Thread?",
+      "reference": "为每个任务直接 new Thread,线程创建和上下文切换都有成本,数量失控会让 CPU 把大量时间花在调度上,甚至导致内存耗尽。ExecutorService 把任务提交和线程管理分离:开发者提交 Runnable 或 Callable,线程池负责复用工作线程、排队任务和控制并发度,因此更适合服务端统一管理并发。"
+    },
+    {
+      "id": "ops-duplicate-chunks",
+      "question": "重复运行测试入库脚本为什么可能导致 top-k 返回多个完全相同的 chunks?",
+      "reference": "重复运行测试入库脚本会产生同名文档和重复的 chunks,导致 top-k 可能返回同一段内容的多个副本。因此测试数据脚本最好在入库前先清理自己管理的样例文档,避免把重复数据问题误判成向量检索问题。"
+    },
+    {
+      "id": "missing-kubernetes-hpa",
+      "question": "知识库里有没有介绍 Kubernetes HPA 的扩缩容算法?",
+      "in_kb": false,
+      "reference": "知识库中没有关于 Kubernetes HPA 扩缩容算法的内容。正确做法是明确说明无法从知识库中找到相关信息,而不是凭模型自身知识编造答案。"
+    }
+  ]
+}

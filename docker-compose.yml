@@ -1,0 +1,75 @@
+name: agenticrag
+
+services:
+  postgres:
+    build:
+      context: ./services/knowledge/docker/postgres
+    environment:
+      POSTGRES_USER: rag
+      POSTGRES_PASSWORD: rag
+      POSTGRES_DB: rag
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rag"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  knowledge:
+    build:
+      context: ./services/knowledge
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://rag:rag@postgres:5432/rag
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  agent:
+    build:
+      context: ./services/agent
+    env_file:
+      - .env
+    environment:
+      RAG_API_BASE: http://knowledge:8000
+    ports:
+      - "8100:8100"
+    depends_on:
+      - knowledge
+
+  web:
+    build:
+      context: ./apps/web
+    environment:
+      RAG_API_BASE: http://knowledge:8000
+      AGENT_API_BASE: http://agent:8100
+    ports:
+      - "3000:3000"
+    depends_on:
+      - knowledge
+      - agent
+
+volumes:
+  postgres_data:
+  redis_data:

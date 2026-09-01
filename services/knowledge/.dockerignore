@@ -1,0 +1,22 @@
+# Python 虚拟环境:1GB,容器内会用自己 pip 装的依赖,绝不能进镜像
+.venv/
+
+# Python 字节码缓存:宿主机编译的 .pyc 进容器没意义,还可能架构不符
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+
+# secrets:不 COPY 进镜像(docker history 能扒出来),运行时用 compose env_file 注入
+.env
+
+# 运行时用不到的东西
+.git/
+.gitignore
+.dockerignore
+docs/
+docker/
+*.md
+.DS_Store
+.claude/
