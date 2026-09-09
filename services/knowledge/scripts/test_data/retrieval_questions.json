@@ -1,64 +1,176 @@
 {
   "questions": [
     {
-      "id": "db-transaction-service-boundary",
-      "topic": "Database Transaction",
-      "question": "为什么下单里的创建订单、扣库存、写支付记录应该放在同一个事务里，Spring Boot 通常在哪一层划分这个事务边界?",
-      "top_k": 3
+      "id": "rag-stages",
+      "topic": "RAG 流程",
+      "question": "根据知识库笔记，RAG 的召回、精排和生成分别接收什么、输出什么？",
+      "top_k": 3,
+      "answerable": true,
+      "expected_sources": [
+        "01_rag_pipeline.md"
+      ],
+      "expected_answer_points": [
+        "召回接收 query，输出候选 chunks。",
+        "精排接收 query 和候选，输出更相关的片段。",
+        "生成接收 query 和上下文，输出答案。"
+      ]
     },
     {
-      "id": "db-mvcc-vs-lock",
-      "topic": "Database Concurrency",
-      "question": "MVCC 和锁分别主要解决什么问题，它们是互相替代的机制吗?",
-      "top_k": 3
+      "id": "rag-candidate-count",
+      "topic": "RAG 候选规模",
+      "question": "笔记里的召回 top-20 到 top-50、精排 top-5 到 top-10，是当前项目必须使用的固定参数吗？",
+      "top_k": 3,
+      "answerable": true,
+      "expected_sources": [
+        "01_rag_pipeline.md"
+      ],
+      "expected_answer_points": [
+        "是说明候选逐步缩减的示意值。",
+        "不能据此认定当前项目配置或固定标准。"
+      ]
     },
     {
-      "id": "spring-ioc-di-bean",
-      "topic": "Spring Boot / IoC",
-      "question": "IoC、DI 和 Bean 分别是什么，它们之间是什么关系?",
-      "top_k": 3
+      "id": "embedding-model",
+      "topic": "Embedding",
+      "question": "根据知识库，为什么切换 Embedding 模型后不能直接沿用旧文档向量？",
+      "top_k": 3,
+      "answerable": true,
+      "expected_sources": [
+        "02_embedding_chunking.md"
+      ],
+      "expected_answer_points": [
+        "不同模型的向量空间不能直接混用。",
+        "文档与查询需要使用一致模型编码。"
+      ]
     },
     {
-      "id": "spring-layer-responsibility",
-      "topic": "Spring Boot Architecture",
-      "question": "Controller、Service、Repository / DAO 应该怎样分工，为什么删 Redis 缓存和发 MQ 通常由 Service 编排而不是放进 DAO?",
-      "top_k": 3
+      "id": "chunk-overlap",
+      "topic": "分块",
+      "question": "根据笔记，chunk_size 和 chunk_overlap 分别控制什么？overlap 想解决什么问题？",
+      "top_k": 3,
+      "answerable": true,
+      "expected_sources": [
+        "02_embedding_chunking.md"
+      ],
+      "expected_answer_points": [
+        "chunk_size 控制长度上限，单位取决于配置。",
+        "overlap 降低跨边界信息被割裂的风险。",
+        "不保证每个输出边界都有相同重叠长度。"
+      ]
     },
     {
-      "id": "mq-ai-long-task",
-      "topic": "MQ / Async Task",
-      "question": "一个需要文件解析、AI 处理、生成结果和持久化的长任务，为什么适合用 MQ，API 应该怎样快速返回?",
-      "top_k": 3
+      "id": "recursive-semantic",
+      "topic": "分块",
+      "question": "根据笔记，递归分块和语义分块的依据有什么不同？OCR 文本缺少段落时可以考虑哪一种？",
+      "top_k": 3,
+      "answerable": true,
+      "expected_sources": [
+        "02_embedding_chunking.md"
+      ],
+      "expected_answer_points": [
+        "递归分块依次使用自然分隔符处理过长片段。",
+        "语义分块利用 Embedding 判断主题变化。",
+        "结构差的 OCR 文本可以考虑语义分块，但有额外计算成本。"
+      ]
     },
     {
-      "id": "mq-consumer-idempotency",
-      "topic": "MQ / Idempotency",
-      "question": "为什么 MQ Consumer 必须考虑幂等，像“库存减 1”这种天然非幂等操作怎样避免重复扣减?",
-      "top_k": 3
+      "id": "hybrid-paths",
+      "topic": "混合检索",
+      "question": "根据知识库，向量检索和全文检索各自关注什么，为什么把它们结合？",
+      "top_k": 3,
+      "answerable": true,
+      "expected_sources": [
+        "03_hybrid_search_rerank.md"
+      ],
+      "expected_answer_points": [
+        "向量检索关注语义，全文检索关注词级匹配。",
+        "两条召回路径互相补充。"
+      ]
     },
     {
-      "id": "sse-reader-chunk-json",
-      "topic": "SSE / Frontend Streaming",
-      "question": "为什么不能对每次 reader.read() 得到的网络 chunk 直接 JSON.parse，前端应该怎样正确解析 SSE?",
-      "top_k": 3
+      "id": "rrf-rerank",
+      "topic": "RRF 与 Rerank",
+      "question": "根据笔记，RRF 和 Rerank 有什么区别？RRF 会直接把 cosine 与全文检索原始分数相加吗？",
+      "top_k": 3,
+      "answerable": true,
+      "expected_sources": [
+        "03_hybrid_search_rerank.md"
+      ],
+      "expected_answer_points": [
+        "RRF 基于排名融合，不直接相加不同尺度原始分数。",
+        "Rerank 将 query 与 chunk 联合输入模型重新打分。"
+      ]
     },
     {
-      "id": "sse-abort-and-error",
-      "topic": "SSE / Error Handling",
-      "question": "AI 流式回答开始后，如果用户点击停止或后端中途报错，AbortController 和 error 事件分别应该怎么处理?",
-      "top_k": 3
+      "id": "rerank-index",
+      "topic": "检索与精排",
+      "question": "结合 Embedding 和 Rerank 的笔记，为什么不跳过召回，直接对全库做联合编码？",
+      "top_k": 3,
+      "answerable": true,
+      "expected_sources": [
+        "02_embedding_chunking.md",
+        "03_hybrid_search_rerank.md"
+      ],
+      "expected_answer_points": [
+        "独立文档向量可以预先计算和索引。",
+        "联合编码分数依赖当前 query，需要实时计算。",
+        "先缩小候选范围，再精排以控制成本。"
+      ]
     },
     {
-      "id": "cross-service-orchestration",
-      "topic": "Service Orchestration",
-      "question": "修改商品时需要更新数据库、删除 Redis 缓存并发送 MQ 事件，这些操作应该由哪一层统一编排，为什么?",
-      "top_k": 3
+      "id": "rag-end-to-end",
+      "topic": "RAG 综合",
+      "question": "根据知识库，从两路召回到最终答案，混合检索、RRF、Rerank 和 LLM 应当怎样衔接？",
+      "top_k": 3,
+      "answerable": true,
+      "expected_sources": [
+        "01_rag_pipeline.md",
+        "03_hybrid_search_rerank.md"
+      ],
+      "expected_answer_points": [
+        "向量与全文召回产生候选。",
+        "RRF 融合排名，Rerank 精排候选。",
+        "LLM 根据问题和选定上下文生成答案。"
+      ]
     },
     {
-      "id": "missing-kubernetes-hpa",
-      "topic": "Out of Knowledge Base",
-      "question": "这批知识库里有没有介绍 Kubernetes HPA 根据 CPU 和自定义指标计算副本数的算法?",
-      "top_k": 3
+      "id": "agent-feedback",
+      "topic": "Agent 执行循环",
+      "question": "根据《AI Agent》笔记，目标、记忆、当前状态和环境反馈怎样影响执行计划？计划制定后还会改变吗？",
+      "top_k": 3,
+      "answerable": true,
+      "expected_sources": [
+        "04_agent_execution.md"
+      ],
+      "expected_answer_points": [
+        "目标、记忆与当前状态共同支持计划生成。",
+        "执行可能改变环境。",
+        "根据反馈调整记忆和计划，计划不是固定不变的。"
+      ]
+    },
+    {
+      "id": "missing-lora",
+      "topic": "知识库未覆盖",
+      "question": "这批笔记有没有说明 LoRA 的低秩矩阵训练公式，以及 rank 和 alpha 应该如何选择？",
+      "top_k": 3,
+      "answerable": false,
+      "expected_sources": [],
+      "expected_answer_points": [
+        "本批语料没有 LoRA 训练公式与参数选择依据。",
+        "应说明资料不足，不编造来源或用通用知识冒充笔记内容。"
+      ]
+    },
+    {
+      "id": "missing-agent-storage",
+      "topic": "知识库未覆盖",
+      "question": "根据这批笔记，Agent 的记忆具体存在哪个数据库，使用什么表结构和恢复协议？",
+      "top_k": 3,
+      "answerable": false,
+      "expected_sources": [],
+      "expected_answer_points": [
+        "Agent 笔记只说明记忆的概念作用。",
+        "没有具体数据库、表结构和恢复协议，不能据此推断实现。"
+      ]
     }
   ]
 }
