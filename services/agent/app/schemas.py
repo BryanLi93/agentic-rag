@@ -6,9 +6,19 @@ class AgentQuery(BaseModel):
 
 
 class KnowledgeSource(BaseModel):
+    """与 Knowledge /retrieve 的 Source 契约保持一致。"""
+
+    id: int
+    chunk_id: int
+    document_id: int
     document_filename: str
+    chunk_index: int
     content: str
+    similarity: float
+    vector_rank: int | None = None
+    keyword_rank: int | None = None
+    rerank_score: float | None = None
 
 
-class KnowledgeQueryResponse(BaseModel):
+class KnowledgeRetrieveResponse(BaseModel):
     sources: list[KnowledgeSource]

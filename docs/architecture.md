@@ -10,7 +10,7 @@ flowchart LR
 
     Web -->|RAG 请求| Knowledge[FastAPI 知识服务]
     Web -->|Agent 请求| Agent[LangGraph Agent 服务]
-    Agent -->|知识库工具| Knowledge
+    Agent -->|知识库工具 /retrieve| Knowledge
 
     Knowledge --> Retrieval[混合检索 + RRF + 可选 Rerank]
     Retrieval --> PG[(PostgreSQL + pgvector + zhparser)]
@@ -73,6 +73,8 @@ flowchart TD
   ]
 }
 ```
+
+Agent 的 `search_knowledge_base` 调用 `/retrieve`（`top_k=3`），通过 `content_and_artifact` 返回两份数据：模型可见的带 `[n]` 编号的原文，以及 `ToolMessage.artifact` 中的完整 `sources`。无结果时 artifact 为 `{"sources": []}`；HTTP、超时或响应校验错误继续向上抛出。当前 Agent SSE 尚未发送 artifact，前端 citation 联动留待后续接入。引用编号仅在单次检索内有效，多次检索的编号合并仍需在编排层处理。
 
 ## 模块职责
 
