@@ -1,63 +1,63 @@
 {
   "questions": [
     {
-      "id": "python-fastapi-request-flow",
-      "topic": "Python / FastAPI",
-      "question": "FastAPI 的一次请求从进入路由到写入数据库通常会经历哪些步骤?",
+      "id": "db-transaction-service-boundary",
+      "topic": "Database Transaction",
+      "question": "为什么下单里的创建订单、扣库存、写支付记录应该放在同一个事务里，Spring Boot 通常在哪一层划分这个事务边界?",
       "top_k": 3
     },
     {
-      "id": "python-pydantic-vs-orm",
-      "topic": "Python / FastAPI",
-      "question": "为什么 Pydantic schema 不应该直接替代 SQLAlchemy ORM model?",
+      "id": "db-mvcc-vs-lock",
+      "topic": "Database Concurrency",
+      "question": "MVCC 和锁分别主要解决什么问题，它们是互相替代的机制吗?",
       "top_k": 3
     },
     {
-      "id": "rag-chunk-size-overlap",
-      "topic": "RAG Pipeline",
-      "question": "chunk_size 和 chunk_overlap 会怎样影响 RAG 的召回效果?",
+      "id": "spring-ioc-di-bean",
+      "topic": "Spring Boot / IoC",
+      "question": "IoC、DI 和 Bean 分别是什么，它们之间是什么关系?",
       "top_k": 3
     },
     {
-      "id": "rag-reranker",
-      "topic": "RAG Pipeline",
-      "question": "RAG 里 reranker 的作用是什么, 什么情况下值得加入 reranker?",
+      "id": "spring-layer-responsibility",
+      "topic": "Spring Boot Architecture",
+      "question": "Controller、Service、Repository / DAO 应该怎样分工，为什么删 Redis 缓存和发 MQ 通常由 Service 编排而不是放进 DAO?",
       "top_k": 3
     },
     {
-      "id": "pgvector-dimension",
-      "topic": "PostgreSQL / pgvector",
-      "question": "为什么 pgvector 的向量字段维度必须和 embedding 模型输出维度一致?",
+      "id": "mq-ai-long-task",
+      "topic": "MQ / Async Task",
+      "question": "一个需要文件解析、AI 处理、生成结果和持久化的长任务，为什么适合用 MQ，API 应该怎样快速返回?",
       "top_k": 3
     },
     {
-      "id": "pgvector-indexes",
-      "topic": "PostgreSQL / pgvector",
-      "question": "HNSW 和 IVFFlat 两种 pgvector 索引有什么差异?",
+      "id": "mq-consumer-idempotency",
+      "topic": "MQ / Idempotency",
+      "question": "为什么 MQ Consumer 必须考虑幂等，像“库存减 1”这种天然非幂等操作怎样避免重复扣减?",
       "top_k": 3
     },
     {
-      "id": "java-volatile",
-      "topic": "Java Concurrency",
-      "question": "Java 里的 volatile 能解决什么问题, 又不能保证什么?",
+      "id": "sse-reader-chunk-json",
+      "topic": "SSE / Frontend Streaming",
+      "question": "为什么不能对每次 reader.read() 得到的网络 chunk 直接 JSON.parse，前端应该怎样正确解析 SSE?",
       "top_k": 3
     },
     {
-      "id": "java-executor-service",
-      "topic": "Java Concurrency",
-      "question": "为什么服务端 Java 程序通常更适合使用 ExecutorService, 而不是每个任务都直接 new Thread?",
+      "id": "sse-abort-and-error",
+      "topic": "SSE / Error Handling",
+      "question": "AI 流式回答开始后，如果用户点击停止或后端中途报错，AbortController 和 error 事件分别应该怎么处理?",
       "top_k": 3
     },
     {
-      "id": "ops-duplicate-chunks",
-      "topic": "Operations / Data Quality",
-      "question": "重复运行测试入库脚本为什么可能导致 top-k 返回多个完全相同的 chunks?",
+      "id": "cross-service-orchestration",
+      "topic": "Service Orchestration",
+      "question": "修改商品时需要更新数据库、删除 Redis 缓存并发送 MQ 事件，这些操作应该由哪一层统一编排，为什么?",
       "top_k": 3
     },
     {
       "id": "missing-kubernetes-hpa",
       "topic": "Out of Knowledge Base",
-      "question": "知识库里有没有介绍 Kubernetes HPA 的扩缩容算法?",
+      "question": "这批知识库里有没有介绍 Kubernetes HPA 根据 CPU 和自定义指标计算副本数的算法?",
       "top_k": 3
     }
   ]

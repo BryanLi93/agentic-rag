@@ -22,6 +22,23 @@ class UploadResponse(BaseModel):
     chunk_count: int = Field(description="切分后的文本块数量")
     created_at: datetime = Field(description="入库时间")
 
+# ---------- Retrieve 端点 ----------
+
+class RetrieveRequest(BaseModel):
+    """只检索知识库，不生成答案。"""
+    query: str = Field(
+        min_length=1,
+        max_length=1000,
+        description="检索查询,1-1000 字符",
+    )
+    top_k: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        description="检索返回的文本块数量,默认 5",
+    )
+
+
 # ---------- Query 端点 ----------
 
 class QueryRequest(BaseModel):
@@ -48,7 +65,7 @@ class QueryRequest(BaseModel):
 
 class Source(BaseModel):
     """检索到的文本块引用信息。"""
-    id: int = Field(description="引用编号,对应 answer 中的 [n] 标记")
+    id: int = Field(description="本次检索的引用编号,可对应后续答案中的 [n] 标记")
     chunk_id: int = Field(description="文本块主键")
     document_id: int = Field(description="所属文档 ID")
     document_filename: str = Field(description="文档名")
@@ -59,6 +76,11 @@ class Source(BaseModel):
     vector_rank: int | None = None
     keyword_rank: int | None = None
     rerank_score: float | None = None
+
+
+class RetrieveResponse(BaseModel):
+    """不经过答案生成的结构化检索结果。"""
+    sources: list[Source] = Field(description="按检索相关性排序的文本块列表")
 
 
 class QueryResponse(BaseModel):

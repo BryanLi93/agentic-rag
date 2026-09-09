@@ -67,7 +67,7 @@ async def main():
             .limit(1)
         )
         if first_chunk:
-            embedding_list = first_chunk.embedding.to_list()
+            embedding_list = first_chunk.embedding
             print(f"\nFirst chunk:")
             print(f"  index={first_chunk.chunk_index}")
             print(f"  tokens={first_chunk.token_count}")

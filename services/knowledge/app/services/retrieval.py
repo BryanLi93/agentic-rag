@@ -29,7 +29,7 @@ CANDIDATES_MULTIPLIER = 4   # 每路检索召回 top_k * 4 个候选,留出 RRF 
 RRF_K = 60                  # RRF 平滑常数,标准取值
 
 RERANK_CANDIDATES = 20      # 送给 reranker 的候选数(从 RRF 融合后取这么多)
-ENABLE_RERANK = False        # 开关,方便对比测试
+ENABLE_RERANK = True        # 开关,方便对比测试
 
 # 检索结果不足时,直接告诉用户
 NO_CONTEXT_ANSWER = "根据现有知识库,我没有找到能回答这个问题的相关内容。"

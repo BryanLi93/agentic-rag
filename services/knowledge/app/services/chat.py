@@ -13,6 +13,7 @@ from app.services.retrieval import query as run_query, QueryResult
 from app.services import conversation as conv_service
 from app.schemas import Source, QueryResponse
 from app.services.retrieval import retrieve, generate_stream, NO_CONTEXT_ANSWER
+from app.services.sources import build_sources
 from app.cache import cache_get_json, cache_set_json
 
 logger = logging.getLogger(__name__)
@@ -94,24 +95,6 @@ async def _prepare(
         logger.info("rewrite: %r -> %r", req_question, search_query)
     return recent_messages, search_query
 
-def _build_sources(retrieved: list) -> list[Source]:
-    # 4. 组装 sources(落库的 sources_json 和响应共用同一份)
-    return [
-        Source(
-            id=i,
-            chunk_id=rc.chunk.id,
-            document_id=rc.document.id,
-            document_filename=rc.document.filename,
-            chunk_index=rc.chunk.chunk_index,
-            content=rc.chunk.content,
-            similarity=round(rc.similarity, 4),
-            vector_rank=rc.vector_rank,
-            keyword_rank=rc.keyword_rank,
-            rerank_score=rc.rerank_score,
-        )
-        for i, rc in enumerate(retrieved, start=1)
-    ]
-
 async def _persist(
     db: AsyncSession,
     req_conversation_id: uuid.UUID | None,
@@ -176,7 +159,7 @@ async def handle_chat(
         top_k=req_top_k,
         system_prompt=req_system_prompt,
     )
-    sources = _build_sources(result.sources)
+    sources = build_sources(result.sources)
     sources_payload = [s.model_dump() for s in sources]
 
     if cache_key:
@@ -212,7 +195,7 @@ async def handle_chat_stream(
     # 未命中缓存:照旧检索 + 逐 token 生成
     retrieved = await retrieve(db, search_query=search_query, top_k=req_top_k)
 
-    sources = _build_sources(retrieved)
+    sources = build_sources(retrieved)
     sources_payload = [s.model_dump() for s in sources]
     yield {"type": "sources", "sources": sources_payload}
 

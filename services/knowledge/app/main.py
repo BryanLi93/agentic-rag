@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
-from app.routers import upload, query, conversation
+from app.routers import conversation, query, retrieve, upload
 from app.config import settings
 from app.db import engine
 from app.logging_config import configure_logging
@@ -96,6 +96,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 # ---------- 路由 ----------
 app.include_router(upload.router)
+app.include_router(retrieve.router)
 app.include_router(query.router)
 app.include_router(conversation.router)
 

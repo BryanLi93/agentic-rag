@@ -42,12 +42,44 @@ flowchart TD
 
 知识服务将原始问题用于最终生成，将改写后的独立问题用于检索；引用元数据始终通过结构化 `sources` 返回给应用层。
 
+### Retrieval-only 接口
+
+`POST /retrieve` 只执行混合检索、RRF 与可选 Rerank，不调用回答模型，也不创建或写入会话。它与 `/query` 复用同一条检索链路和 `Source` 结构，供 Agent 等上层编排直接消费检索能力。
+
+```json
+{
+  "query": "pgvector 如何计算向量相似度？",
+  "top_k": 5
+}
+```
+
+响应只包含按相关性排序的结构化来源：
+
+```json
+{
+  "sources": [
+    {
+      "id": 1,
+      "chunk_id": 42,
+      "document_id": 7,
+      "document_filename": "pgvector.md",
+      "chunk_index": 3,
+      "content": "...",
+      "similarity": 0.82,
+      "vector_rank": 1,
+      "keyword_rank": 2,
+      "rerank_score": null
+    }
+  ]
+}
+```
+
 ## 模块职责
 
 | 模块 | 职责 | 主要接口 |
 |---|---|---|
 | `apps/web` | 对话界面、文档上传、SSE 解析、来源面板、工具执行轨迹 | `/api/chat`、`/api/agent`、`/api/upload` |
-| `services/knowledge` | 文档入库、检索、生成、会话、缓存、指标 | `/upload`、`/query`、`/query/stream`、`/metrics` |
+| `services/knowledge` | 文档入库、检索、生成、会话、缓存、指标 | `/upload`、`/retrieve`、`/query`、`/query/stream`、`/metrics` |
 | `services/agent` | 工具选择、LangGraph 编排、Agent SSE | `/agent/stream` |
 | `eval` | 数据集采集、Ragas 评分、性能测试、Prompt A/B | `/query`、`/metrics` |
 
