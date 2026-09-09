@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator, Mapping
 from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage, ToolMessage
 
 from app.agent import agent
+from app.schemas import KnowledgeRetrieveResponse
 
 
 def encode_sse(frame: Mapping[str, object]) -> str:
@@ -38,6 +39,21 @@ async def stream_agent_events(question: str) -> AsyncIterator[str]:
                                 }
                             )
                     elif isinstance(message, ToolMessage):
+                        if (
+                            message.name == "search_knowledge_base"
+                            and message.status != "error"
+                            and message.artifact is not None
+                        ):
+                            sources = KnowledgeRetrieveResponse.model_validate(
+                                message.artifact
+                            )
+                            yield encode_sse(
+                                {
+                                    "type": "sources",
+                                    "tool_call_id": message.tool_call_id,
+                                    **sources.model_dump(mode="json"),
+                                }
+                            )
                         yield encode_sse(
                             {
                                 "type": "step",

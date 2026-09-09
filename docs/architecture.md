@@ -74,7 +74,9 @@ flowchart TD
 }
 ```
 
-Agent 的 `search_knowledge_base` 调用 `/retrieve`（`top_k=3`），通过 `content_and_artifact` 返回两份数据：模型可见的带 `[n]` 编号的原文，以及 `ToolMessage.artifact` 中的完整 `sources`。无结果时 artifact 为 `{"sources": []}`；HTTP、超时或响应校验错误继续向上抛出。当前 Agent SSE 尚未发送 artifact，前端 citation 联动留待后续接入。引用编号仅在单次检索内有效，多次检索的编号合并仍需在编排层处理。
+Agent 的 `search_knowledge_base` 调用 `/retrieve`（`top_k=3`），通过 `content_and_artifact` 返回两份数据：模型可见的带 `[n]` 编号的原文，以及 `ToolMessage.artifact` 中的完整 `sources`。无结果时 artifact 为 `{"sources": []}`；HTTP、超时或响应校验错误继续向上抛出。Agent SSE 在知识库工具成功返回有效 artifact 后、`step(done)` 前发送独立的 `sources` 事件，保留完整来源字段及原引用编号；空列表也会发送。无 artifact、其他工具或错误 ToolMessage 不发送来源；无效 artifact 的校验异常由 Router 转为 `error` 事件，不发送正常 `done`。
+
+每次检索单独发送 `sources`，通过 `tool_call_id` 关联对应工具调用，不在 SSE 层合并或重新编号。引用编号仅在单次检索内有效，多次检索的编号统一仍需在编排层处理；仅有 `tool_call_id` 不能消除答案中重复 `[1]` 的歧义。当前前端 Agent reducer 尚未消费该事件，citation UI 联动留待后续接入。
 
 ## 模块职责
 
@@ -100,6 +102,7 @@ error   { message }
 
 ```text
 step    { id, tool, status: running, input }
+sources { tool_call_id, sources }
 step    { id, tool, status: done, output }
 token   { content }
 done    {}
