@@ -105,11 +105,29 @@ step    { id, tool, status: running, input }
 sources { tool_call_id, sources }
 step    { id, tool, status: done, output }
 token   { content }
-done    {}
+done    { thread_id }
 error   { message }
 ```
 
 Next.js 路由处理器作为 BFF 透传上游 SSE；浏览器分别通过 `ragReduce` 与 `agentReduce` 将语义帧归并为界面状态。
+
+### Agent 多轮与持久化
+
+`POST /agent/stream` 接收 `{"question": "...", "thread_id": "可选"}`。不传或传 null 时生成 UUID；传入已有 ID 时从 PostgreSQL checkpoint 恢复历史。ID 允许 1–128 位字母、数字、下划线或连字符；未使用过的合法 ID 会创建新会话。每轮只追加本轮 HumanMessage，不重复提交整段历史。正常结束的 `done.thread_id` 用于下一轮请求，与 Knowledge 的 `conversation_id` 互相独立。
+
+Agent 使用 `AsyncPostgresSaver` 和 psycopg 异步连接池。部署前独立执行 `python -m scripts.init_checkpointer`，由 `setup()` 创建或迁移 checkpoint 表；FastAPI lifespan 只建立连接、构建 Agent，退出时关闭连接池，不执行 DDL。Docker Compose 的一次性 `agent-init` 服务等待 PostgreSQL 健康后初始化，Agent 通过 `service_completed_successfully` 等待它成功退出；镜像同时包含 app 和 scripts。初始化失败会阻止 Compose 启动 Agent，本地也必须确认脚本成功后再启动服务。
+
+配置优先使用 `AGENT_DATABASE_URL`，未设置时复用 `DATABASE_URL`（兼容项目的 `postgresql+psycopg://` 前缀）。缺少配置或连接失败会阻止启动，不会静默退回内存存储。运行阶段不检查迁移版本、不自动补建表，本地漏执行初始化时可能在首次请求才报缺表错误。参考 [LangGraph AsyncPostgresSaver](https://reference.langchain.com/python/langgraph.checkpoint.postgres/aio/AsyncPostgresSaver)。
+
+持久化范围包括 Agent 消息状态、工具消息和 artifact；不是聊天列表 API，也不是长期语义记忆。服务重启后，使用同一数据库和 thread_id 可恢复状态。依赖为 `langgraph-checkpoint-postgres`、`psycopg[binary,pool]`，不会复用 Knowledge 的 SQLAlchemy Session。
+
+当前边界：
+
+- 采用单 worker / 单实例部署，同会话并发请求返回 `error: ThreadBusyError`，不同会话可以并行。进程内保护不能协调多实例，扩容前需分布式互斥。数据库迁移已独立为部署步骤，初始化任务应串行执行，避免多个任务同时迁移。
+- checkpoint 可能在中途已写入。错误或停止不回滚已写历史，也不自动重放工具；用同一问题重试会追加新消息，尚无请求级幂等或分支重生成。
+- 新会话的 ID 只在正常 done 中返回；首轮中断可能留下客户端无法继续使用的 checkpoint。无历史裁剪或过期清理，长对话会增加上下文和存储开销。
+- thread_id 不是鉴权凭证。当前没有用户所有权校验，不能作为多用户公网服务直接开放。
+- 前端 `/api/agent` 及 reducer 尚未传递/保存 thread_id，Web 仍是单轮；统一入口、多轮 UI 和 citation 消费在第 5 步处理。跨次检索/跨轮引用编号统一也尚未实现。
 
 ## 数据与可观测性
 

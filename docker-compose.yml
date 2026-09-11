@@ -46,6 +46,19 @@ services:
       redis:
         condition: service_healthy
 
+  agent-init:
+    build:
+      context: ./services/agent
+    env_file:
+      - .env
+    environment:
+      AGENT_DATABASE_URL: postgresql://rag:rag@postgres:5432/rag
+    command: ["python", "-m", "scripts.init_checkpointer"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   agent:
     build:
       context: ./services/agent
@@ -53,10 +66,16 @@ services:
       - .env
     environment:
       RAG_API_BASE: http://knowledge:8000
+      AGENT_DATABASE_URL: postgresql://rag:rag@postgres:5432/rag
     ports:
       - "8100:8100"
     depends_on:
-      - knowledge
+      knowledge:
+        condition: service_started
+      agent-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
 
   web:
     build:

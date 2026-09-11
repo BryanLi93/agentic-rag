@@ -5,7 +5,7 @@
 ## 核心能力
 
 - **知识服务**：文件入库、向量检索与全文检索的混合召回、RRF、可选 Rerank、多轮问题改写与结构化引用。
-- **Agent 服务**：LangGraph Agent、知识库工具、工具执行轨迹与 Token 级 SSE 输出。
+- **Agent 服务**：LangGraph Agent、知识库工具、工具执行轨迹与 Token 级 SSE 输出，支持基于 PostgreSQL checkpoint 的 API 多轮会话。
 - **Web 应用**：Next.js BFF、RAG / Agent 双链路交互、文档上传、来源面板、停止与重试。
 - **离线评测**：黄金测试集（Golden Dataset）、Ragas 四项质量指标、延迟 / Token / 成本统计与 Prompt A/B。
 - **可观测性**：Redis 缓存、结构化日志、`trace_id` 与 Prometheus 指标。
@@ -63,7 +63,35 @@ Agent 服务：
 ```bash
 python3.12 -m venv services/agent/.venv
 services/agent/.venv/bin/pip install -r services/agent/requirements.txt
+PYTHONPATH=services/agent services/agent/.venv/bin/python -m scripts.init_checkpointer
 services/agent/.venv/bin/uvicorn --app-dir services/agent app.main:app --port 8100
+```
+
+Agent 启动需要 PostgreSQL：默认复用 `.env` 的 `DATABASE_URL`，也可用 `AGENT_DATABASE_URL` 指向独立数据库。首次部署或升级 checkpointer 后，先执行 `scripts.init_checkpointer` 创建/迁移表，成功后再启动服务；脚本可重复执行，不修改 Knowledge 文档表。初始化账号需要 DDL 权限，运行阶段不再执行建表。当前使用单 worker，重启不会丢失已写入的会话历史。
+
+Docker Compose 通过一次性 `agent-init` 服务执行初始化，Agent 等待其成功退出后启动。升级部署使用 `docker compose up --build`；单独 `restart agent` 不会执行迁移。不要并发运行多个初始化任务。本地若漏跑脚本，服务可能启动但请求会因缺表失败，运行时不会自动补建。
+
+通过 Agent API 测试两轮（前端多轮尚未接入）：
+
+```bash
+curl -N http://127.0.0.1:8100/agent/stream \
+  -H 'Content-Type: application/json' \
+  -d '{"question":"根据笔记介绍 RRF"}'
+
+# 将上一轮 done 中的 thread_id 填入下方；也可重启 Agent 后再发第二轮。
+curl -N http://127.0.0.1:8100/agent/stream \
+  -H 'Content-Type: application/json' \
+  -d '{"question":"它和 Rerank 有什么区别？","thread_id":"替换为上一轮的ID"}'
+```
+
+不传 `thread_id` 会开启新会话。checkpoint 不提供鉴权、历史列表、自动过期或重试幂等，部署边界见 [系统架构](docs/architecture.md)。
+
+Agent 单元测试与可选数据库测试（假模型，不调用外部 LLM）：
+
+```bash
+PYTHONPATH=services/agent services/agent/.venv/bin/python -B -m unittest discover -s services/agent/tests -v
+# 显式启用：在配置的数据库中创建并清理随机测试 schema，不操作业务文档。
+AGENT_POSTGRES_TEST=1 PYTHONPATH=services/agent services/agent/.venv/bin/python -B -m unittest discover -s services/agent/tests -p test_postgres.py -v
 ```
 
 Web：

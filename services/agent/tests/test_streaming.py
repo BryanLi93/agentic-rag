@@ -4,6 +4,7 @@ import importlib
 import json
 import os
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from langchain_core.messages import AIMessage, AIMessageChunk, ToolMessage
@@ -14,8 +15,7 @@ with patch.dict(os.environ, {
     "OPENAI_BASE_URL": "http://127.0.0.1:1/v1",
     "CHAT_MODEL": "test-model",
 }):
-    with patch("app.llm.get_chat_client"), patch("langchain.agents.create_agent"):
-        streaming = importlib.import_module("app.streaming")
+    streaming = importlib.import_module("app.streaming")
 
 
 SOURCE = {
@@ -45,8 +45,8 @@ class StreamingTests(unittest.IsolatedAsyncioTestCase):
             for event in events:
                 yield event
 
-        with patch.object(streaming.agent, "astream", side_effect=event_stream):
-            frames = [frame async for frame in streaming.stream_agent_events("什么是 RAG？")]
+        with patch.object(streaming, "get_agent", return_value=SimpleNamespace(astream=event_stream)):
+            frames = [frame async for frame in streaming.stream_agent_events("什么是 RAG？", "test-stream")]
         for frame in frames:
             self.assertTrue(frame.startswith("data: "))
             self.assertTrue(frame.endswith("\n\n"))
@@ -79,7 +79,7 @@ class StreamingTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_no_retrieval_has_no_sources(self) -> None:
         frames = await self.collect([("messages", (AIMessageChunk(content="你好"), {}))])
-        self.assertEqual(frames, [{"type": "token", "content": "你好"}, {"type": "done"}])
+        self.assertEqual(frames, [{"type": "token", "content": "你好"}, {"type": "done", "thread_id": "test-stream"}])
 
     async def test_missing_artifact_other_tool_and_error_are_ignored(self) -> None:
         messages = [
@@ -114,7 +114,7 @@ class StreamingTests(unittest.IsolatedAsyncioTestCase):
         async def event_stream(*args: object, **kwargs: object):
             yield "updates", {"tools": {"messages": [tool_message({"sources": [{}]})]}}
 
-        with patch.object(streaming.agent, "astream", side_effect=event_stream):
+        with patch.object(streaming, "get_agent", return_value=SimpleNamespace(astream=event_stream)):
             response = await agent_stream(AgentQuery(question="什么是 RAG？"))
             with self.assertLogs("app.main", level="ERROR"):
                 frames = [json.loads(frame[6:]) async for frame in response.body_iterator]
