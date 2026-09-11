@@ -1,48 +1,55 @@
-// 需要服务端流式 fetch + 长连接,用 Node runtime(默认即是);给足时长上限。
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const RAG_API_BASE = process.env.RAG_API_BASE ?? "http://127.0.0.1:8000";
-
-// SSE 透传头:把后端 text/event-stream 原样转给浏览器,关掉中间层缓冲。
-const SSE_HEADERS = {
-  "Content-Type": "text/event-stream; charset=utf-8",
-  "Cache-Control": "no-cache, no-transform",
-  Connection: "keep-alive",
-};
+const AGENT_API_BASE = process.env.AGENT_API_BASE ?? "http://127.0.0.1:8100";
 
 export async function POST(req: Request) {
-  const { question, conversation_id } = (await req.json()) as {
-    question?: string;
-    conversation_id?: string;
-  };
-  const q = question?.trim();
-  if (!q) return new Response("问题不能为空", { status: 400 });
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return new Response("请求必须是 JSON", { status: 400 });
+  }
+  if (typeof body !== "object" || body === null || !("question" in body) ||
+      typeof body.question !== "string") {
+    return new Response("问题必须是字符串", { status: 400 });
+  }
+  const question = body.question.trim();
+  if (!question || question.length > 1000) {
+    return new Response("问题长度必须为 1–1000 个字符", { status: 400 });
+  }
+  let thread_id: string | undefined;
+  if ("thread_id" in body && body.thread_id != null) {
+    if (typeof body.thread_id !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(body.thread_id)) {
+      return new Response("thread_id 格式不正确", { status: 400 });
+    }
+    thread_id = body.thread_id;
+  }
 
-  // 调后端 /query/stream;后端没起/连不上时给一个干净的 502(否则 fetch 抛出会变成 500)
   let upstream: Response;
   try {
-    upstream = await fetch(`${RAG_API_BASE}/query/stream`, {
+    upstream = await fetch(`${AGENT_API_BASE}/agent/stream`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        question: q,
-        top_k: 5,
-        ...(conversation_id ? { conversation_id } : {}),
-      }),
+      body: JSON.stringify({ question, thread_id }),
+      signal: req.signal,
+      cache: "no-store",
     });
   } catch {
-    return new Response("连接不上 RAG 服务(:8000),它起着吗?", { status: 502 });
+    return new Response("无法连接 Agent 服务", { status: 502 });
   }
-
-  // 开流前错误(会话不存在 404 / 检索失败 502):此时还没发 200,直接把状态码映射给客户端
   if (!upstream.ok || !upstream.body) {
     const detail = await upstream.text().catch(() => "");
-    return new Response(detail || `上游服务错误 ${upstream.status}`, {
-      status: upstream.status || 502,
+    return new Response(detail || "Agent 服务响应异常", {
+      status: upstream.ok ? 502 : upstream.status,
     });
   }
-
-  // 开流后:后端 SSE 直接透传,客户端 parseSSE 自己解析每帧
-  return new Response(upstream.body, { headers: SSE_HEADERS });
+  // 原样转发 sources、step、token、done、error，上传不经过此路由。
+  return new Response(upstream.body, {
+    headers: {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      "X-Accel-Buffering": "no",
+    },
+  });
 }

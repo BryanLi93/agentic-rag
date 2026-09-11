@@ -44,10 +44,11 @@ export function MessageItem({
   return (
     <div className="flex justify-start">
       <div className="max-w-[85%] rounded-2xl bg-black/5 px-4 py-2 text-sm dark:bg-white/10">
-        {/* agent 模式:工具时间线在答案上方(它是为了产出答案而做的工作) */}
+        {/* 工具时间线在答案上方，引用面板仍复用现有组件。 */}
         {toolSteps.length > 0 && <ToolTimeline steps={toolSteps} />}
 
         <MessageContent text={text} validIds={validIds} onCite={onCite} />
+        {message.sourceWarning && <p className="mt-2 text-xs text-amber-600">{message.sourceWarning}</p>}
 
         {!text && busy && (
           <span className="inline-block animate-pulse text-zinc-400">

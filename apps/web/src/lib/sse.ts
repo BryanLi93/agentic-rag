@@ -1,5 +1,3 @@
-import type { BackendFrame } from "./types";
-
 /**
  * 把后端的自定义 SSE 响应体切成一帧帧并 JSON.parse。
  *
@@ -9,9 +7,9 @@ import type { BackendFrame } from "./types";
  *
  * 以 async generator 形式 yield 每一帧,调用方 `for await` 消费。
  */
-export async function* parseSSE<T = BackendFrame>(
+export async function* parseSSE(
   body: ReadableStream<Uint8Array>,
-): AsyncGenerator<T> {
+): AsyncGenerator<unknown> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
@@ -26,16 +24,20 @@ export async function* parseSSE<T = BackendFrame>(
       while ((idx = buffer.indexOf("\n\n")) !== -1) {
         const block = buffer.slice(0, idx);
         buffer = buffer.slice(idx + 2);
-        const frame = parseEventBlock<T>(block);
-        if (frame) yield frame;
+        const frame = parseEventBlock(block);
+        if (frame !== null) yield frame;
       }
     }
     // 兜底:flush 解码器 + 处理可能残留的最后一块(正常流以 done\n\n 收尾,这里一般为空)
     buffer += decoder.decode();
-    const frame = parseEventBlock<T>(buffer);
-    if (frame) yield frame;
+    const frame = parseEventBlock(buffer);
+    if (frame !== null) yield frame;
   } finally {
-    reader.releaseLock();
+    try {
+      await reader.cancel();
+    } finally {
+      reader.releaseLock();
+    }
   }
 }
 
@@ -43,7 +45,7 @@ export async function* parseSSE<T = BackendFrame>(
  * 解析单个事件块。SSE 规范允许一个事件有多行 `data:`(按行拼接);
  * 后端是单行 data,这里仍按规范拼接以求稳健。
  */
-function parseEventBlock<T>(block: string): T | null {
+function parseEventBlock(block: string): unknown {
   const data = block
     .split("\n")
     .filter((line) => line.startsWith("data:"))
@@ -52,9 +54,8 @@ function parseEventBlock<T>(block: string): T | null {
 
   if (!data.trim()) return null;
   try {
-    return JSON.parse(data) as T;
+    return JSON.parse(data);
   } catch {
-    // 已按 \n\n 切帧,理论上不会出现半截 JSON;兜底跳过,避免整流崩掉
-    return null;
+    throw new Error("SSE 消息不是有效 JSON");
   }
 }

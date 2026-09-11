@@ -6,7 +6,7 @@
 
 - **知识服务**：文件入库、向量检索与全文检索的混合召回、RRF、可选 Rerank、多轮问题改写与结构化引用。
 - **Agent 服务**：LangGraph Agent、知识库工具、工具执行轨迹与 Token 级 SSE 输出，支持基于 PostgreSQL checkpoint 的 API 多轮会话。
-- **Web 应用**：Next.js BFF、RAG / Agent 双链路交互、文档上传、来源面板、停止与重试。
+- **Web 应用**：统一 Agent 聊天入口、多轮追问、文档上传、引用面板、工具轨迹、停止与重新发送。
 - **离线评测**：黄金测试集（Golden Dataset）、Ragas 四项质量指标、延迟 / Token / 成本统计与 Prompt A/B。
 - **可观测性**：Redis 缓存、结构化日志、`trace_id` 与 Prometheus 指标。
 
@@ -71,7 +71,7 @@ Agent 启动需要 PostgreSQL：默认复用 `.env` 的 `DATABASE_URL`，也可�
 
 Docker Compose 通过一次性 `agent-init` 服务执行初始化，Agent 等待其成功退出后启动。升级部署使用 `docker compose up --build`；单独 `restart agent` 不会执行迁移。不要并发运行多个初始化任务。本地若漏跑脚本，服务可能启动但请求会因缺表失败，运行时不会自动补建。
 
-通过 Agent API 测试两轮（前端多轮尚未接入）：
+Web 已统一使用 Agent 并传递会话 ID；也可通过 Agent API 测试两轮：
 
 ```bash
 curl -N http://127.0.0.1:8100/agent/stream \
@@ -106,6 +106,7 @@ npm --prefix apps/web run dev
 ```bash
 python3 -m compileall -q services/knowledge/app services/agent/app eval/scripts
 npm --prefix apps/web run lint
+npm --prefix apps/web test
 npm --prefix apps/web run build
 docker compose config --quiet
 ```

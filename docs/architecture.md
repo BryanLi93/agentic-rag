@@ -8,8 +8,8 @@ AgenticRAG 采用模块化单仓库（monorepo）：Web 负责产品交互和 BF
 flowchart LR
     User[用户] --> Web[Next.js Web + BFF]
 
-    Web -->|RAG 请求| Knowledge[FastAPI 知识服务]
-    Web -->|Agent 请求| Agent[LangGraph Agent 服务]
+    Web -->|文档上传 /upload| Knowledge[FastAPI 知识服务]
+    Web -->|统一聊天 /api/chat| Agent[LangGraph Agent 服务]
     Agent -->|知识库工具 /retrieve| Knowledge
 
     Knowledge --> Retrieval[混合检索 + RRF + 可选 Rerank]
@@ -20,8 +20,7 @@ flowchart LR
 
     Eval[离线评测] -->|/query + /metrics| Knowledge
 
-    Knowledge -->|sources + token + done| Web
-    Agent -->|step + token + done| Web
+    Agent -->|sources + step + token + done| Web
 ```
 
 ## RAG 流程
@@ -76,13 +75,13 @@ flowchart TD
 
 Agent 的 `search_knowledge_base` 调用 `/retrieve`（`top_k=3`），通过 `content_and_artifact` 返回两份数据：模型可见的带 `[n]` 编号的原文，以及 `ToolMessage.artifact` 中的完整 `sources`。无结果时 artifact 为 `{"sources": []}`；HTTP、超时或响应校验错误继续向上抛出。Agent SSE 在知识库工具成功返回有效 artifact 后、`step(done)` 前发送独立的 `sources` 事件，保留完整来源字段及原引用编号；空列表也会发送。无 artifact、其他工具或错误 ToolMessage 不发送来源；无效 artifact 的校验异常由 Router 转为 `error` 事件，不发送正常 `done`。
 
-每次检索单独发送 `sources`，通过 `tool_call_id` 关联对应工具调用，不在 SSE 层合并或重新编号。引用编号仅在单次检索内有效，多次检索的编号统一仍需在编排层处理；仅有 `tool_call_id` 不能消除答案中重复 `[1]` 的歧义。当前前端 Agent reducer 尚未消费该事件，citation UI 联动留待后续接入。
+每次检索单独发送 `sources`，通过 `tool_call_id` 关联对应工具调用，不在 SSE 层合并或重新编号。引用编号仅在单次检索内有效，多次检索的编号统一仍需在编排层处理；仅有 `tool_call_id` 不能消除答案中重复 `[1]` 的歧义。前端 `chatReduce` 已消费该事件，复用来源面板与 citation 点击。来源按 tool_call_id 分组保存，仅合并无歧义编号；同号不同片段不生成引用链接，并提示从工具轨迹查看原文，不擅自重编号。
 
 ## 模块职责
 
 | 模块 | 职责 | 主要接口 |
 |---|---|---|
-| `apps/web` | 对话界面、文档上传、SSE 解析、来源面板、工具执行轨迹 | `/api/chat`、`/api/agent`、`/api/upload` |
+| `apps/web` | 对话界面、文档上传、SSE 解析、来源面板、工具执行轨迹 | `/api/chat`、`/api/upload`（旧 `/api/agent` 返回 410） |
 | `services/knowledge` | 文档入库、检索、生成、会话、缓存、指标 | `/upload`、`/retrieve`、`/query`、`/query/stream`、`/metrics` |
 | `services/agent` | 工具选择、LangGraph 编排、Agent SSE | `/agent/stream` |
 | `eval` | 数据集采集、Ragas 评分、性能测试、Prompt A/B | `/query`、`/metrics` |
@@ -109,7 +108,7 @@ done    { thread_id }
 error   { message }
 ```
 
-Next.js 路由处理器作为 BFF 透传上游 SSE；浏览器分别通过 `ragReduce` 与 `agentReduce` 将语义帧归并为界面状态。
+Next.js `/api/chat` 统一代理 Agent `/agent/stream`，转发 question、thread_id 和请求取消信号。浏览器通过 `chatReduce` 同时处理来源、工具轨迹和回答；不再提供 RAG/Agent 切换。`/api/agent` 暂停用并返回 410，源码已无调用，待确认外部调用迁移后删除。上传仍由 `/api/upload` 直达 Knowledge `/upload`，不经过 Agent。
 
 ### Agent 多轮与持久化
 
@@ -125,9 +124,9 @@ Agent 使用 `AsyncPostgresSaver` 和 psycopg 异步连接池。部署前独立�
 
 - 采用单 worker / 单实例部署，同会话并发请求返回 `error: ThreadBusyError`，不同会话可以并行。进程内保护不能协调多实例，扩容前需分布式互斥。数据库迁移已独立为部署步骤，初始化任务应串行执行，避免多个任务同时迁移。
 - checkpoint 可能在中途已写入。错误或停止不回滚已写历史，也不自动重放工具；用同一问题重试会追加新消息，尚无请求级幂等或分支重生成。
-- 新会话的 ID 只在正常 done 中返回；首轮中断可能留下客户端无法继续使用的 checkpoint。无历史裁剪或过期清理，长对话会增加上下文和存储开销。
+- API 自动生成的 ID 仍只在正常 done 中返回；Web 在首轮先生成 UUID 并随请求发送，后续校验 done.thread_id，从而保留首轮中断时的 ID。新建对话清空本地消息并更换 ID，不删除 PostgreSQL 历史；刷新页面不恢复本地会话。无历史裁剪或过期清理，长对话会增加上下文和存储开销。
 - thread_id 不是鉴权凭证。当前没有用户所有权校验，不能作为多用户公网服务直接开放。
-- 前端 `/api/agent` 及 reducer 尚未传递/保存 thread_id，Web 仍是单轮；统一入口、多轮 UI 和 citation 消费在第 5 步处理。跨次检索/跨轮引用编号统一也尚未实现。
+- Web 已传递 thread_id 并支持连续追问。停止/错误保留已显示内容；重新发送会追加新一轮，不回滚已写 checkpoint；持续出错需新建对话。新建对话后旧响应不能回写新状态。完整流必须收到 done，否则显示断流错误。跨次检索/跨轮引用编号统一尚未实现，本轮不继承旧回答的 sources，避免凭历史编号绑定来源。
 
 ## 数据与可观测性
 

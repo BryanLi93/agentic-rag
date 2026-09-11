@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Source } from "@/lib/types";
-import { type Reduce, useStreamChat } from "@/lib/useStreamChat";
-import { agentReduce, ragReduce } from "@/lib/reducers";
+import { useStreamChat } from "@/lib/useStreamChat";
 import { uploadFile, validateFile } from "@/lib/upload";
 import { MessageItem } from "./MessageItem";
 import { SourcesPanel } from "./SourcesPanel";
@@ -20,15 +19,9 @@ type UploadState = {
   error?: string;
 };
 
-type Mode = "rag" | "agent";
-
-const SAMPLES: Record<Mode, string[]> = {
-  rag: ["什么是 RAG?", "向量检索和关键词检索有什么区别?"],
-  agent: ["pgvector 用什么距离度量?", "FastAPI 的请求流程是怎样的?"],
-};
+const SAMPLES = ["根据笔记介绍 RAG 的三个阶段", "RRF 和 Rerank 有什么区别？"];
 
 export function Chat() {
-  const [mode, setMode] = useState<Mode>("rag");
   const [input, setInput] = useState("");
   const [upload, setUpload] = useState<UploadState | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -42,12 +35,7 @@ export function Chat() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastFollowKey = useRef("");
 
-  // 自定义流式 hook 包办 messages / 状态 / 停止 / 重试;按 mode 选 endpoint 和帧解析逻辑
-  const { messages, send: sendMessage, status, error, regenerate, stop, reset } =
-    useStreamChat({
-      api: mode === "agent" ? "/api/agent" : "/api/chat",
-      reduce: (mode === "agent" ? agentReduce : ragReduce) as Reduce,
-    });
+  const { messages, send: sendMessage, status, error, resend, stop, reset } = useStreamChat();
 
   const busy = status === "streaming";
 
@@ -67,8 +55,8 @@ export function Chat() {
       .reverse()
       .find((m) => m.role === "assistant");
     const src = lastAssistant ? getSources(lastAssistant) : [];
-    const followKey = `${lastAssistant?.id ?? ""}:${src.map((s) => s.id).join(",")}`;
-    if (src.length > 0 && followKey !== lastFollowKey.current) {
+    const followKey = `${lastAssistant?.id ?? ""}:${src.map((s) => `${s.id}-${s.chunk_id}`).join(",")}`;
+    if (followKey !== lastFollowKey.current) {
       lastFollowKey.current = followKey;
       setActive((a) => ({ ...a, sources: src })); // 只换列表,不动 ref/key(不触发定位高亮)
     }
@@ -78,23 +66,15 @@ export function Chat() {
     const q = text.trim();
     if (!q || busy) return;
     setInput("");
-    // RAG 多轮:从最近一条 assistant 回填的 conversationId 带给后端;agent 无多轮
-    const conversationId =
-      mode === "rag"
-        ? [...messages].reverse().find((m) => m.role === "assistant")
-            ?.conversationId
-        : undefined;
-    sendMessage(q, conversationId ? { conversation_id: conversationId } : undefined);
+    void sendMessage(q);
   }
 
-  function switchMode(next: Mode) {
-    if (next === mode) return;
-    reset(); // 各模式会话独立,切换即清空当前消息
-    // 来源侧栏也清空(agent 模式无结构化来源)
+  function newChat() {
+    reset();
+    setInput("");
     setActive({ sources: [], ref: null, key: 0 });
     setPanelOpen(false);
     lastFollowKey.current = "";
-    setMode(next);
   }
 
   async function handleFile(file: File) {
@@ -138,27 +118,12 @@ export function Chat() {
         <div>
           <h1 className="text-sm font-semibold">AgenticRAG</h1>
           <p className="text-xs text-zinc-500">
-            {mode === "rag"
-              ? "知识库问答 · 流式回答 · 引用溯源"
-              : "Agent · 知识库工具 · 执行轨迹"}
+            AI 知识助手 · 引用溯源 · 工具执行轨迹
           </p>
         </div>
-        {/* 模式切换:RAG 直连 / Agent(带工具可视化) */}
-        <div className="flex rounded-full border border-black/10 p-0.5 text-xs dark:border-white/15">
-          {(["rag", "agent"] as const).map((m) => (
-            <button
-              key={m}
-              onClick={() => switchMode(m)}
-              className={`rounded-full px-3 py-1 transition-colors ${
-                mode === m
-                  ? "bg-blue-600 text-white"
-                  : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
-              }`}
-            >
-              {m === "rag" ? "RAG" : "Agent"}
-            </button>
-          ))}
-        </div>
+        <button onClick={newChat} className="rounded-full border border-black/10 px-3 py-1 text-xs dark:border-white/15">
+          新建对话
+        </button>
       </header>
 
       <div
@@ -179,12 +144,10 @@ export function Chat() {
         {messages.length === 0 && (
           <div className="mt-10 text-center text-sm text-zinc-500">
             <p className="mb-4">
-              {mode === "rag"
-                ? "问点知识库里的内容试试:"
-                : "Agent 会自己决定要不要查知识库工具:"}
+              AI 知识问题优先检索笔记，也可以直接追问：
             </p>
             <div className="flex flex-col items-center gap-2">
-              {SAMPLES[mode].map((s) => (
+              {SAMPLES.map((s) => (
                 <button
                   key={s}
                   onClick={() => send(s)}
@@ -208,12 +171,12 @@ export function Chat() {
 
         {error && (
           <div className="flex items-center gap-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
-            <span className="flex-1">出错了:{error.message}</span>
+            <span className="flex-1">出错了：{error.message}。重新发送会追加一轮，不回滚已保存的历史；持续失败请新建对话。</span>
             <button
-              onClick={() => regenerate()}
+              onClick={resend}
               className="shrink-0 rounded-md bg-red-600 px-2 py-1 text-xs font-medium text-white"
             >
-              重试
+              重新发送
             </button>
           </div>
         )}
