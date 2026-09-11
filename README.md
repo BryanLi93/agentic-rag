@@ -1,114 +1,86 @@
 # AgenticRAG
 
-**全栈 Agentic RAG 知识助手** — 基于混合检索、引用溯源、LangGraph Agent、SSE 流式输出与离线评测构建。
+**将个人笔记变成可追问、可溯源的 AI 知识助手。**
 
-## 核心能力
+上传文档后，用户通过统一聊天入口提问，由 Agent 按需检索知识库、组织回答，并展示引用原文与工具执行过程。
 
-- **知识服务**：文件入库、向量检索与全文检索的混合召回、RRF、可选 Rerank、多轮问题改写与结构化引用。
-- **Agent 服务**：LangGraph Agent、知识库工具、工具执行轨迹与 Token 级 SSE 输出，支持基于 PostgreSQL checkpoint 的 API 多轮会话。
-- **Web 应用**：统一 Agent 聊天入口、多轮追问、文档上传、引用面板、工具轨迹、停止与重新发送。
-- **离线评测**：黄金测试集（Golden Dataset）、Ragas 四项质量指标、延迟 / Token / 成本统计与 Prompt A/B。
-- **可观测性**：Redis 缓存、结构化日志、`trace_id` 与 Prometheus 指标。
+![AgenticRAG 知识问答界面](docs/images/overview.png)
 
-## 项目结构
+## 主要功能
 
-```text
-.
-├── apps/web/                 # Next.js 产品界面与 BFF
-├── services/knowledge/      # FastAPI 知识 / RAG 服务
-├── services/agent/          # FastAPI + LangGraph Agent 服务
-├── eval/                    # 离线 RAG 评测
-├── docs/architecture.md     # 系统架构与接口约定
-└── docker-compose.yml       # Web、Agent、Knowledge、PostgreSQL、Redis
-```
+- **统一问答入口**：无需切换 RAG / Agent 模式，AI 知识问题优先检索笔记，其他问题由 Agent 判断如何回答。
+- **可追溯的回答**：点击回答中的引用编号，查看对应文档与原文片段。
+- **可见的执行过程**：展示工具调用参数、执行状态和返回内容，让用户了解回答的依据。
+- **连续追问**：保留会话上下文，围绕同一主题继续提问。
+- **文档与对话**：支持 Markdown、TXT、PDF 上传，以及流式回答、停止生成和新建对话。
+
+## 技术栈
+
+- **前端**：Next.js、React、TypeScript
+- **后端与 Agent**：FastAPI、LangChain、LangGraph
+- **存储与检索**：PostgreSQL、pgvector、zhparser、Redis
+- **评测与观测**：Ragas、Prometheus
 
 ## 快速启动
 
-运行环境：Docker Desktop。
+需要 Docker Compose 和可用的 OpenAI 兼容模型服务配置。从仓库根目录执行，已有 `.env` 时保留原配置：
 
 ```bash
 cp .env.example .env
-# 编辑 .env，填入 OpenAI 兼容接口的 API Key 与模型配置
+# 填写模型服务地址、API Key 与模型名称
 docker compose up --build
 ```
 
-服务地址：
+打开 **http://127.0.0.1:3000**，上传 [AI 示例语料](services/knowledge/scripts/test_data/documents/)，尝试：
 
-- Web：http://127.0.0.1:3000
-- 知识服务 API：http://127.0.0.1:8000/docs
-- 知识服务健康检查：http://127.0.0.1:8000/health
-- Agent 服务 API：http://127.0.0.1:8100/docs
+1. “根据笔记，RAG 的召回、精排和生成分别负责什么？”
+2. 点击回答中的引用，查看来源原文。
+3. 继续追问：“为什么不能省略召回，直接对全库做精排？”
 
-通过 Web 上传 `.txt`、`.md` 或 `.pdf` 文档后，即可体验知识库问答和 Agent 工具调用。
+<details>
+<summary>分服务启动与测试命令</summary>
 
-## 本地开发
-
-启动 PostgreSQL 与 Redis：
+需要 Python 3.12、Node.js 20.9+。先配置根目录 `.env`，以下服务分别在独立终端运行。
 
 ```bash
 docker compose up -d postgres redis
-```
 
-知识服务：
-
-```bash
+# Knowledge
 python3.12 -m venv services/knowledge/.venv
 services/knowledge/.venv/bin/pip install -r services/knowledge/requirements.txt
 PYTHONPATH=services/knowledge services/knowledge/.venv/bin/python -m scripts.init_db
 services/knowledge/.venv/bin/uvicorn --app-dir services/knowledge app.main:app --port 8000
-```
 
-Agent 服务：
-
-```bash
+# Agent：先初始化 checkpoint 表，再启动服务
 python3.12 -m venv services/agent/.venv
 services/agent/.venv/bin/pip install -r services/agent/requirements.txt
 PYTHONPATH=services/agent services/agent/.venv/bin/python -m scripts.init_checkpointer
 services/agent/.venv/bin/uvicorn --app-dir services/agent app.main:app --port 8100
-```
 
-Agent 启动需要 PostgreSQL：默认复用 `.env` 的 `DATABASE_URL`，也可用 `AGENT_DATABASE_URL` 指向独立数据库。首次部署或升级 checkpointer 后，先执行 `scripts.init_checkpointer` 创建/迁移表，成功后再启动服务；脚本可重复执行，不修改 Knowledge 文档表。初始化账号需要 DDL 权限，运行阶段不再执行建表。当前使用单 worker，重启不会丢失已写入的会话历史。
-
-Docker Compose 通过一次性 `agent-init` 服务执行初始化，Agent 等待其成功退出后启动。升级部署使用 `docker compose up --build`；单独 `restart agent` 不会执行迁移。不要并发运行多个初始化任务。本地若漏跑脚本，服务可能启动但请求会因缺表失败，运行时不会自动补建。
-
-Web 已统一使用 Agent 并传递会话 ID；也可通过 Agent API 测试两轮：
-
-```bash
-curl -N http://127.0.0.1:8100/agent/stream \
-  -H 'Content-Type: application/json' \
-  -d '{"question":"根据笔记介绍 RRF"}'
-
-# 将上一轮 done 中的 thread_id 填入下方；也可重启 Agent 后再发第二轮。
-curl -N http://127.0.0.1:8100/agent/stream \
-  -H 'Content-Type: application/json' \
-  -d '{"question":"它和 Rerank 有什么区别？","thread_id":"替换为上一轮的ID"}'
-```
-
-不传 `thread_id` 会开启新会话。checkpoint 不提供鉴权、历史列表、自动过期或重试幂等，部署边界见 [系统架构](docs/architecture.md)。
-
-Agent 单元测试与可选数据库测试（假模型，不调用外部 LLM）：
-
-```bash
-PYTHONPATH=services/agent services/agent/.venv/bin/python -B -m unittest discover -s services/agent/tests -v
-# 显式启用：在配置的数据库中创建并清理随机测试 schema，不操作业务文档。
-AGENT_POSTGRES_TEST=1 PYTHONPATH=services/agent services/agent/.venv/bin/python -B -m unittest discover -s services/agent/tests -p test_postgres.py -v
-```
-
-Web：
-
-```bash
+# Web
 npm --prefix apps/web ci
 npm --prefix apps/web run dev
 ```
 
-## 基础检查
+测试与检查：
 
 ```bash
-python3 -m compileall -q services/knowledge/app services/agent/app eval/scripts
-npm --prefix apps/web run lint
+PYTHONPATH=services/agent services/agent/.venv/bin/python -B -m unittest discover -s services/agent/tests -v
 npm --prefix apps/web test
+npm --prefix apps/web run lint
 npm --prefix apps/web run build
 docker compose config --quiet
+
+# 可选：在数据库中创建并清理随机测试 schema，验证持久化
+AGENT_POSTGRES_TEST=1 PYTHONPATH=services/agent services/agent/.venv/bin/python -B -m unittest discover -s services/agent/tests -p test_postgres.py -v
 ```
 
-系统设计、数据流和 SSE 接口约定见 [系统架构](docs/architecture.md)，评测方法见 [离线评测](eval/README.md)。
+API 文档：Knowledge http://127.0.0.1:8000/docs · Agent http://127.0.0.1:8100/docs
+
+</details>
+
+## 文档
+
+- [系统架构与接口约定](docs/architecture.md)
+- [RAG 离线评测](eval/README.md)
+- [测试语料与问题说明](services/knowledge/scripts/test_data/README.md)
